@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.XR;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public class ItemSpawner : MonoBehaviour
 {
@@ -14,6 +15,14 @@ public class ItemSpawner : MonoBehaviour
     private bool thumbstickWasLeft = false;
     private bool thumbstickWasRight = false;
 
+    // Placement and orientation
+    private Vector3 previewOffset;
+    private float previewRotationX = 0f;
+    private float previewRotationY = 0f;
+    private float previewRotationZ = 0f;
+    private float moveSpeed = 1.5f;
+    private float rotateSpeed = 90f;
+
     void Start()
     {
         prefabs = Resources.LoadAll<GameObject>("PREFABS");
@@ -25,42 +34,112 @@ public class ItemSpawner : MonoBehaviour
         if (prefabs == null || prefabs.Length == 0) return;
 
         InputDevice rightHand = InputDevices.GetDeviceAtXRNode(XRNode.RightHand);
+        InputDevice leftHand = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand);
 
-        // --- Trigger → Toggle Menu ---
-        rightHand.TryGetFeatureValue(CommonUsages.triggerButton, out bool triggerPressed);
-        if (triggerPressed && !triggerWasPressed)
+        // --- Right Trigger → Toggle Menu ---
+        rightHand.TryGetFeatureValue(CommonUsages.triggerButton, out bool rightTrigger);
+        if (rightTrigger && !triggerWasPressed)
         {
             ToggleMenu();
         }
-        triggerWasPressed = triggerPressed;
+        triggerWasPressed = rightTrigger;
 
         if (menuOpen)
         {
-            // --- Thumbstick Left/Right → Cycle Prefabs ---
-            rightHand.TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 thumbstick);
+            // Get all inputs
+            rightHand.TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 rightThumbstick);
+            leftHand.TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 leftThumbstick);
+            leftHand.TryGetFeatureValue(CommonUsages.triggerButton, out bool leftTrigger);
+            leftHand.TryGetFeatureValue(CommonUsages.gripButton, out bool leftGrip);
+            rightHand.TryGetFeatureValue(CommonUsages.gripButton, out bool rightGrip);
+            leftHand.TryGetFeatureValue(CommonUsages.primaryButton, out bool xButton);   // X
+            leftHand.TryGetFeatureValue(CommonUsages.secondaryButton, out bool yButton); // Y
 
-            bool thumbstickLeft = thumbstick.x < -0.5f;
-            bool thumbstickRight = thumbstick.x > 0.5f;
+            // --- Right Thumbstick Left/Right → Cycle Prefabs ---
+            bool thumbstickLeft = rightThumbstick.x < -0.5f;
+            bool thumbstickRight = rightThumbstick.x > 0.5f;
 
             if (thumbstickLeft && !thumbstickWasLeft)
-            {
                 GoLeft();
-            }
             thumbstickWasLeft = thumbstickLeft;
 
             if (thumbstickRight && !thumbstickWasRight)
-            {
                 GoRight();
-            }
             thumbstickWasRight = thumbstickRight;
 
-            // --- Grip → Confirm Spawn ---
-            rightHand.TryGetFeatureValue(CommonUsages.gripButton, out bool gripPressed);
-            if (gripPressed && !gripWasPressed)
+            // --- Right Thumbstick Up/Down → Move Preview Up/Down ---
+            if (rightThumbstick.y > 0.5f)
+            {
+                previewOffset += Vector3.up * moveSpeed * Time.deltaTime;
+                UpdatePreviewTransform();
+            }
+            else if (rightThumbstick.y < -0.5f)
+            {
+                previewOffset -= Vector3.up * moveSpeed * Time.deltaTime;
+                UpdatePreviewTransform();
+            }
+
+            // --- Left Thumbstick → Move Preview Forward/Back/Left/Right ---
+            if (leftThumbstick.magnitude > 0.1f)
+            {
+                Vector3 camForward = Camera.main.transform.forward;
+                Vector3 camRight = Camera.main.transform.right;
+                camForward.y = 0;
+                camRight.y = 0;
+
+                previewOffset += (camForward * leftThumbstick.y + camRight * leftThumbstick.x)
+                                 * moveSpeed * Time.deltaTime;
+                UpdatePreviewTransform();
+            }
+
+            // --- Rotate Z ---
+            // Left Grip alone → Rotate Z positive
+            if (leftGrip && !xButton && !yButton)
+            {
+                previewRotationZ += rotateSpeed * Time.deltaTime;
+                UpdatePreviewTransform();
+            }
+            // Left Trigger alone → Rotate Z negative
+            if (leftTrigger && !xButton && !yButton)
+            {
+                previewRotationZ -= rotateSpeed * Time.deltaTime;
+                UpdatePreviewTransform();
+            }
+
+            // --- Rotate X ---
+            // Left Grip + X → Rotate X positive
+            if (leftGrip && xButton && !yButton)
+            {
+                previewRotationX += rotateSpeed * Time.deltaTime;
+                UpdatePreviewTransform();
+            }
+            // Left Trigger + X → Rotate X negative
+            if (leftTrigger && xButton && !yButton)
+            {
+                previewRotationX -= rotateSpeed * Time.deltaTime;
+                UpdatePreviewTransform();
+            }
+
+            // --- Rotate Y ---
+            // Left Grip + Y → Rotate Y positive
+            if (leftGrip && yButton && !xButton)
+            {
+                previewRotationY += rotateSpeed * Time.deltaTime;
+                UpdatePreviewTransform();
+            }
+            // Left Trigger + Y → Rotate Y negative
+            if (leftTrigger && yButton && !xButton)
+            {
+                previewRotationY -= rotateSpeed * Time.deltaTime;
+                UpdatePreviewTransform();
+            }
+
+            // --- Right Grip → Confirm Spawn ---
+            if (rightGrip && !gripWasPressed)
             {
                 ConfirmSpawn();
             }
-            gripWasPressed = gripPressed;
+            gripWasPressed = rightGrip;
         }
     }
 
@@ -69,17 +148,25 @@ public class ItemSpawner : MonoBehaviour
         menuOpen = !menuOpen;
 
         if (menuOpen)
+        {
+            previewOffset = transform.forward * 1.5f + Vector3.up * 1f;
+            previewRotationX = 0f;
+            previewRotationY = 0f;
+            previewRotationZ = 0f;
             ShowPreview();
+        }
         else
+        {
             DestroyPreview();
+        }
     }
 
     void ShowPreview()
     {
         DestroyPreview();
 
-        Vector3 previewPosition = transform.position + transform.forward * 1.5f + Vector3.up * 1f;
-        previewObject = Instantiate(prefabs[currentIndex], previewPosition, Quaternion.identity);
+        Vector3 previewPosition = transform.position + previewOffset;
+        previewObject = Instantiate(prefabs[currentIndex], previewPosition, Quaternion.Euler(previewRotationX, previewRotationY, previewRotationZ));
 
         Rigidbody rb = previewObject.GetComponent<Rigidbody>();
         if (rb == null)
@@ -88,10 +175,15 @@ public class ItemSpawner : MonoBehaviour
         rb.isKinematic = true;
         rb.useGravity = false;
 
-        if (previewObject.GetComponent<PreviewRotator>() == null)
-            previewObject.AddComponent<PreviewRotator>();
-
         UnityEngine.Debug.Log("Previewing: " + prefabs[currentIndex].name);
+    }
+
+    void UpdatePreviewTransform()
+    {
+        if (previewObject == null) return;
+
+        previewObject.transform.position = transform.position + previewOffset;
+        previewObject.transform.rotation = Quaternion.Euler(previewRotationX, previewRotationY, previewRotationZ);
     }
 
     void DestroyPreview()
@@ -125,10 +217,6 @@ public class ItemSpawner : MonoBehaviour
     {
         if (previewObject == null) return;
 
-        PreviewRotator rotator = previewObject.GetComponent<PreviewRotator>();
-        if (rotator != null)
-            Destroy(rotator);
-
         if (previewObject.GetComponent<Collider>() == null)
             previewObject.AddComponent<BoxCollider>();
 
@@ -139,9 +227,9 @@ public class ItemSpawner : MonoBehaviour
         rb.isKinematic = false;
         rb.useGravity = true;
 
-        if (previewObject.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>() == null)
+        if (previewObject.GetComponent<XRGrabInteractable>() == null)
         {
-            UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable grab = previewObject.AddComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>();
+            XRGrabInteractable grab = previewObject.AddComponent<XRGrabInteractable>();
             grab.trackPosition = true;
             grab.trackRotation = true;
             grab.throwOnDetach = true;

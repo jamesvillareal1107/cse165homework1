@@ -1,4 +1,5 @@
 {
+    "version": 1,
     "name": "XRI Default Input Actions",
     "maps": [
         {
@@ -1374,8 +1375,8 @@
                     "name": "",
                     "id": "99cb7ad1-51ec-4611-af68-92a85f2c17d6",
                     "path": "<XRController>{LeftHand}/{Primary2DAxis}",
-                    "interactions": "Sector(directions=12,sweepBehavior=1),Sector(directions=2,sweepBehavior=2)",
-                    "processors": "",
+                    "interactions": "",
+                    "processors": "StickDeadzone",
                     "groups": "",
                     "action": "Turn",
                     "isComposite": false,
@@ -2447,6 +2448,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "Continuous Turn",
+                    "type": "Value",
+                    "id": "caf503ba-f672-4c84-8c99-83eccf091b40",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
                 }
             ],
             "bindings": [
@@ -2476,8 +2486,8 @@
                     "name": "",
                     "id": "d6c08c3d-3d41-4695-994d-1ac9016a5a9e",
                     "path": "<XRController>{RightHand}/{Primary2DAxis}",
-                    "interactions": "Sector(directions=12,sweepBehavior=1),Sector(directions=2,sweepBehavior=2)",
-                    "processors": "",
+                    "interactions": "",
+                    "processors": "StickDeadzone",
                     "groups": "",
                     "action": "Turn",
                     "isComposite": false,
@@ -2524,6 +2534,17 @@
                     "processors": "",
                     "groups": "",
                     "action": "Jump",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "9e028479-4611-4dec-976b-3db281ac3fa4",
+                    "path": "<XRController>{RightHand}/{Primary2DAxis}",
+                    "interactions": "",
+                    "processors": "StickDeadzone",
+                    "groups": "",
+                    "action": "Continuous Turn",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

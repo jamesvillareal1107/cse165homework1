@@ -23,7 +23,7 @@ public class ItemSpawner : MonoBehaviour
     void Update()
     {
         if (prefabs == null || prefabs.Length == 0) return;
-
+    
         InputDevice rightHand = InputDevices.GetDeviceAtXRNode(XRNode.RightHand);
 
         // --- Trigger → Toggle Menu ---
